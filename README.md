@@ -118,5 +118,5 @@ sqlcmd -S "localhost" -C -i "数据库/宿舍.sql"
 - server.js: 卫生检查支持 problem_photo 字段
 - server.js: 每次启动自动安装触发器 + 修正宿舍人数
 - app.js: 卫生检查表格增加照片列、弹窗增加照片输入框
-- app.js: 分配记录页面增加楼栋/宿舍下拉筛选
+- app.js: 分配记录页面增加楼栋
 
