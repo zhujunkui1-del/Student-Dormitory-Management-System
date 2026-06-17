@@ -414,6 +414,32 @@ async function deleteStudent(id) {
   else toast(res.message, 'error');
 }
 // ==================== 分配记录 ====================
+async function loadAllocations() {
+  const bld = $('allocBuildingFilter')?.value || '';
+  const rm = $('allocRoomFilter')?.value || '';
+  let q = [];
+  if(bld) q.push('building_id='+bld);
+  if(rm) q.push('room_id='+rm);
+  const qs = q.length ? '?'+q.join('&') : '';
+  const res = await api('/api/allocations'+qs);
+  if (res.success) {
+    $('allocTbody').innerHTML = res.data.map(a => `
+      <tr>
+        <td>${a.allocation_id}</td><td>${a.student_id}</td><td>${a.student_name}</td>
+        <td>${a.building_name ? a.building_name + ' ' + a.room_number : '-'}</td>
+        <td>${a.bed_number}</td>
+        <td><span class="badge badge-${a.allocation_type==='入住'?'success':a.allocation_type==='退宿'?'danger':'info'}">${a.allocation_type}</span></td>
+        <td>${formatDate(a.allocation_date)}</td><td>${a.operator}</td><td>${a.reason || '-'}</td>
+      </tr>
+    `).join('');
+  }
+}
+async function loadBuildingOptions() {
+  const res = await api('/api/buildings');
+  if(res.success && $('allocBuildingFilter')) {
+    res.data.forEach(b => $('allocBuildingFilter').innerHTML += `<option value="${b.building_id}">${b.building_name}</option>`);
+  }
+}
 async function renderAllocations(mc) {
   mc.innerHTML = `
     <div class="page-header"><h2>📋 住宿分配记录</h2><p>追溯学生住宿分配历史</p></div>
@@ -421,7 +447,10 @@ async function renderAllocations(mc) {
       <div class="table-container"><table><thead><tr><th>记录ID</th><th>学号</th><th>姓名</th><th>宿舍</th><th>床位</th><th>类型</th><th>日期</th><th>操作人</th><th>原因</th></tr></thead><tbody id="allocTbody"></tbody></table></div>
     </div>
   `;
-  const res = await api('/api/allocations');
+  await loadBuildingOptions();
+  await loadAllocations();
+  return;
+  const _unused = await api('/api/allocations');
   if (res.success) {
     $('allocTbody').innerHTML = res.data.map(a => `
       <tr>
@@ -544,7 +573,7 @@ async function renderHealthChecks(mc) {
     <div class="page-header"><h2>🧹 卫生检查管理</h2><p>录入和查看宿舍卫生检查记录与评分</p></div>
     <div class="card">
       <div class="card-header"><h3>检查记录</h3><button class="btn btn-primary btn-sm" onclick="showHealthCheckModal()">+ 添加检查记录</button></div>
-      <div class="table-container"><table><thead><tr><th>ID</th><th>宿舍</th><th>检查人</th><th>日期</th><th>分数</th><th>等级</th><th>评语</th></tr></thead><tbody id="healthTbody"></tbody></table></div>
+      <div class="table-container"><table><thead><tr><th>ID</th><th>宿舍</th><th>检查人</th><th>日期</th><th>分数</th><th>等级</th><th>评语</th><th>照片</th></tr></thead><tbody id="healthTbody"></tbody></table></div>
     </div>
   `;
   const res = await api('/api/health-checks');
@@ -555,7 +584,7 @@ async function renderHealthChecks(mc) {
         <td>${formatDate(h.check_date)}</td>
         <td><b>${h.score}</b></td>
         <td><span class="badge badge-${h.grade==='优'?'success':h.grade==='良'?'info':h.grade==='中'?'warning':'danger'}">${h.grade}</span></td>
-        <td>${h.comment || '-'}</td>
+        <td>${h.comment || '-'}</td><td>${h.problem_photo ? '<a href="'+h.problem_photo+'" target="_blank">查看</a>' : '-'}</td>
       </tr>
     `).join('');
   }
@@ -572,7 +601,7 @@ async function showHealthCheckModal() {
     <div class="form-group"><label>检查日期</label><input type="date" id="fm_hc_date" value="${today}"></div>
     <div class="form-group"><label>分数 (0-100)</label><input type="number" id="fm_hc_score" min="0" max="100"></div>
     <div class="form-group"><label>等级</label><select id="fm_hc_grade"><option value="优">优 (≥90)</option><option value="良">良 (80-89)</option><option value="中">中 (60-79)</option><option value="差">差 (&lt;60)</option></select></div>
-    <div class="form-group"><label>评语</label><textarea id="fm_hc_comment"></textarea></div>
+    <div class="form-group"><label>评语</label><textarea id="fm_hc_comment"></textarea></div><div class="form-group"><label>问题照片</label><input id="fm_hc_photo" placeholder="照片URL或路径（可选）"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">取消</button>
       <button class="btn btn-primary" onclick="saveHealthCheck()">保存</button>
@@ -584,7 +613,7 @@ async function saveHealthCheck() {
   const body = {
     room_id: $('fm_hc_room').value, inspector: $('fm_hc_inspector').value,
     check_date: $('fm_hc_date').value, score: parseInt($('fm_hc_score').value),
-    grade: $('fm_hc_grade').value, comment: $('fm_hc_comment').value,
+    grade: $('fm_hc_grade').value, comment: $('fm_hc_comment').value, problem_photo: $('fm_hc_photo').value,
   };
   const res = await api('/api/health-checks', { method: 'POST', body });
   if (res.success) { toast(res.message); closeModal(); renderHealthChecks($('mainContent')); }
