@@ -1,4 +1,4 @@
-const { spawn } = require("child_process");
+﻿const { spawn } = require("child_process");
 const path = require("path");
 
 const PYTHON = "C:\\Users\\zhuju\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
@@ -41,17 +41,14 @@ function sendQuery(queryStr, params) {
 }
 
 async function query(queryStr, params) {
-  try {
-    var result = await sendQuery(queryStr, params || []);
-    if (result.ok) {
-      return { recordset: result.recordset || [], rowsAffected: result.rowsAffected || [0] };
-    }
-    console.error("查询错误:", result.error, queryStr.substring(0, 100));
-    return { recordset: [] };
-  } catch (err) {
-    console.error("查询错误:", err.message, queryStr.substring(0, 100));
-    return { recordset: [] };
+  var result = await sendQuery(queryStr, params || []);
+  if (result.ok) {
+    return { recordset: result.recordset || [], rowsAffected: result.rowsAffected || [0] };
   }
+  console.error("DB Error:", result.error, queryStr.substring(0, 100));
+  var dbErr = new Error(result.error || 'Database query failed');
+  dbErr.sql = queryStr.substring(0, 200);
+  throw dbErr;
 }
 
 module.exports = { query: query };
