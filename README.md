@@ -44,13 +44,10 @@ sqlcmd -S "localhost" -C -i "数据库/宿舍.sql"
 ├── start.bat          # 一键启动脚本
 ├── package.json       # npm 依赖清单
 ├── public/
-│   ├── index.html     # 前端主页面
-│   ├── css/style.css  # 样式
-│   └── js/app.js      # 前端逻辑
-├── 数据库/
-│   └── 宿舍.sql       # 建库建表 + 初始数据
-├── ER图/              # 数据库设计文档
-└── 文档/              # 项目报告
+    ├── index.html     # 前端主页面
+    ├── css/style.css  # 样式
+    └── js/app.js      # 前端逻辑
+
 ```
 
 ## 功能模块
