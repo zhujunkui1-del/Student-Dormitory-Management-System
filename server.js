@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const path = require("path");
@@ -169,6 +169,20 @@ app.post("/api/students", async (req, res) => {
       }
     }
 
+    // 男女分宿校验
+    if (dormitory_id) {
+      const bldCheck = await db.query(
+        "SELECT b.building_type FROM dormitory d JOIN building b ON d.building_id=b.building_id WHERE d.room_id=?",
+        [dormitory_id]
+      );
+      if (bldCheck.recordset.length > 0) {
+        const bt = bldCheck.recordset[0].building_type;
+        if ((bt === '男生' && gender !== '男') || (bt === '女生' && gender !== '女')) {
+          return res.json({ success: false, message: '性别不符：' + bt + '宿舍只能住' + (bt === '男生' ? '男' : '女') + '生' });
+        }
+      }
+    }
+
     await db.query(
       "INSERT INTO student (student_id, name, gender, phone, college, class_name, dormitory_id, bed_number, check_in_date, status) VALUES (?,?,?,?,?,?,?,?,?,?)",
       [student_id, name, gender, phone, college, class_name, dormitory_id, bed_number, check_in_date, '在住']
@@ -206,6 +220,20 @@ app.put("/api/students/:id", async (req, res) => {
       if (conflict.recordset.length > 0) {
         var cname = conflict.recordset[0].name;
         return res.json({ success: false, message: '床位冲突：' + cname + ' 已占用该床位' });
+      }
+    }
+
+    // 男女分宿校验（宿舍变更时）
+    if (newDormitoryId && newDormitoryId !== oldDormitoryId) {
+      const bldCheck2 = await db.query(
+        "SELECT b.building_type FROM dormitory d JOIN building b ON d.building_id=b.building_id WHERE d.room_id=?",
+        [newDormitoryId]
+      );
+      if (bldCheck2.recordset.length > 0) {
+        const bt2 = bldCheck2.recordset[0].building_type;
+        if ((bt2 === '男生' && gender !== '男') || (bt2 === '女生' && gender !== '女')) {
+          return res.json({ success: false, message: '性别不符：' + bt2 + '宿舍只能住' + (bt2 === '男生' ? '男' : '女') + '生' });
+        }
       }
     }
 
@@ -264,7 +292,11 @@ app.put("/api/students/:id", async (req, res) => {
 
 app.delete("/api/students/:id", async (req, res) => {
   try {
-    await db.query("DELETE FROM student WHERE student_id = ?", [req.params.id]);
+    const sid = req.params.id;
+    await db.query("DELETE FROM allocation_record WHERE student_id = ?", [sid]);
+    await db.query("DELETE FROM visitor WHERE student_id = ?", [sid]);
+    await db.query("DELETE FROM repair WHERE student_id = ?", [sid]);
+    await db.query("DELETE FROM student WHERE student_id = ?", [sid]);
     res.json({ success: true, message: "删除成功" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -371,10 +403,10 @@ app.get("/api/health-checks", async (req, res) => {
 
 app.post("/api/health-checks", async (req, res) => {
   try {
-    const { room_id, inspector, check_date, score, grade, comment } = req.body;
+    const { room_id, inspector, check_date, score, grade, comment, problem_photo } = req.body;
     await db.query(
-      "INSERT INTO health_check (room_id, inspector, check_date, score, grade, comment) VALUES (?,?,?,?,?,?)",
-      [room_id, inspector, check_date, score, grade, comment]
+      "INSERT INTO health_check (room_id, inspector, check_date, score, grade, comment, problem_photo) VALUES (?,?,?,?,?,?,?)",
+      [room_id, inspector, check_date, score, grade, comment, problem_photo || null]
     );
     res.json({ success: true, message: "检查记录添加成功" });
   } catch (err) {
@@ -385,11 +417,14 @@ app.post("/api/health-checks", async (req, res) => {
 // ==================== 分配记录 ====================
 app.get("/api/allocations", async (req, res) => {
   try {
-    const { student_id } = req.query;
+    const { student_id, building_id, room_id } = req.query;
     let sql = "SELECT a.*, s.name AS student_name, d.room_number, b.building_name FROM allocation_record a LEFT JOIN student s ON a.student_id = s.student_id LEFT JOIN dormitory d ON a.room_id = d.room_id LEFT JOIN building b ON d.building_id = b.building_id WHERE 1=1";
     let params = [];
     if (student_id) { sql += " AND a.student_id = ?"; params.push(student_id); }
-    sql += " ORDER BY a.allocation_date DESC";
+    if (building_id) { sql += " AND b.building_id = ?"; params.push(building_id); }
+    if (room_id) { sql += " AND a.room_id = ?"; params.push(room_id); }
+    sql += " ORDER BY a.allocation_id DESC";
+
     const result = await db.query(sql, params);
     res.json({ success: true, data: result.recordset });
   } catch (err) {
@@ -438,5 +473,17 @@ app.get("*", (req, res) => {
 });
 
 app.listen(PORT, () => {
+(async function() {
+  try {
+    await db.query(`CREATE OR ALTER TRIGGER trg_update_occupancy ON student AFTER INSERT, UPDATE, DELETE AS BEGIN SET NOCOUNT ON; UPDATE d SET current_occupancy=current_occupancy+1 FROM dormitory d INNER JOIN inserted i ON d.room_id=i.dormitory_id LEFT JOIN deleted del ON i.student_id=del.student_id WHERE i.status=N'在住' AND i.dormitory_id IS NOT NULL AND (del.student_id IS NULL OR del.status<>N'在住' OR ISNULL(del.dormitory_id,'')<>ISNULL(i.dormitory_id,'')); UPDATE d SET current_occupancy=current_occupancy-1 FROM dormitory d INNER JOIN deleted del ON d.room_id=del.dormitory_id LEFT JOIN inserted i ON del.student_id=i.student_id WHERE del.status=N'在住' AND del.dormitory_id IS NOT NULL AND (i.student_id IS NULL OR i.status<>N'在住' OR ISNULL(i.dormitory_id,'')<>ISNULL(del.dormitory_id,'')); END;`);
+    console.log("AUTO: Trigger installed");
+    await db.query("UPDATE dormitory SET current_occupancy = (SELECT COUNT(*) FROM student WHERE dormitory_id = dormitory.room_id AND status = N'在住') WHERE capacity >= (SELECT COUNT(*) FROM student WHERE dormitory_id = dormitory.room_id AND status = N'在住')");
+    console.log("AUTO: Occupancy fixed");
+    var r = await db.query("SELECT room_id, current_occupancy FROM dormitory ORDER BY room_id");
+    console.log("AUTO: Occupancy check:", JSON.stringify(r.recordset));
+  } catch(e) {
+    console.error("AUTO: Trigger setup failed:", e.message);
+  }
+})();
   console.log("宿舍管理系统已启动: http://localhost:" + PORT);
 });

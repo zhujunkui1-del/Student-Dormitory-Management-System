@@ -1,4 +1,4 @@
-const { spawn } = require("child_process");
+﻿const { spawn } = require("child_process");
 const path = require("path");
 
 const PYTHON = "C:\\Users\\zhuju\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
@@ -41,6 +41,7 @@ function sendQuery(queryStr, params) {
 }
 
 async function query(queryStr, params) {
+<<<<<<< HEAD
   try {
     var result = await sendQuery(queryStr, params || []);
     if (result.ok) {
@@ -55,3 +56,16 @@ async function query(queryStr, params) {
 }
 
 module.exports = { query: query };
+=======
+  var result = await sendQuery(queryStr, params || []);
+  if (result.ok) {
+    return { recordset: result.recordset || [], rowsAffected: result.rowsAffected || [0] };
+  }
+  console.error("DB Error:", result.error, queryStr.substring(0, 100));
+  var dbErr = new Error(result.error || 'Database query failed');
+  dbErr.sql = queryStr.substring(0, 200);
+  throw dbErr;
+}
+
+module.exports = { query: query };
+>>>>>>> 935fc83ccbfe2bcbda3de0d75705a6bde0968148

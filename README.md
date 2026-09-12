@@ -1,4 +1,4 @@
-﻿# 学生宿舍管理系统
+﻿# 宿舍管理系统
 
 基于 Node.js + Python + SQL Server 的高校宿舍管理 Web 系统，支持楼栋管理、宿舍分配、报修、访客登记、卫生检查等功能。
 
@@ -44,6 +44,7 @@ sqlcmd -S "localhost" -C -i "数据库/宿舍.sql"
 ├── start.bat          # 一键启动脚本
 ├── package.json       # npm 依赖清单
 ├── public/
+<<<<<<< HEAD
 │   ├── index.html     # 前端主页面
 │   ├── css/style.css  # 样式
 │   └── js/app.js      # 前端逻辑
@@ -51,6 +52,12 @@ sqlcmd -S "localhost" -C -i "数据库/宿舍.sql"
 │   └── 宿舍.sql       # 建库建表 + 初始数据
 ├── ER图/              # 数据库设计文档
 └── 文档/              # 项目报告
+=======
+    ├── index.html     # 前端主页面
+    ├── css/style.css  # 样式
+    └── js/app.js      # 前端逻辑
+
+>>>>>>> 935fc83ccbfe2bcbda3de0d75705a6bde0968148
 ```
 
 ## 功能模块
@@ -102,3 +109,24 @@ sqlcmd -S "localhost" -C -i "数据库/宿舍.sql"
 ## 许可证
 
 仅供学习用途。
+<<<<<<< HEAD
+=======
+
+---------------------------------------------------------------------------
+## 2026/06/17
+## 修改摘要
+
+### 修复
+- db.js: 数据库错误不再静默吞没，修复假报"操作成功"的 bug
+- server.js: 学生删除时先清理关联记录(allocation/visitor/repair)，解决外键冲突
+- server.js: 分配记录按 allocation_id 降序排列，新增楼栋/宿舍筛选接口
+- 触发器: 新增自动安装+DELETE处理，学生入住/调换/休学/退宿/删除均实时更新宿舍人数
+
+### 新增
+- server.js: 男女分宿校验，男生不能入住女生楼，反之亦然
+- server.js: 卫生检查支持 problem_photo 字段
+- server.js: 每次启动自动安装触发器 + 修正宿舍人数
+- app.js: 卫生检查表格增加照片列、弹窗增加照片输入框
+- app.js: 分配记录页面增加楼栋
+
+>>>>>>> 935fc83ccbfe2bcbda3de0d75705a6bde0968148
