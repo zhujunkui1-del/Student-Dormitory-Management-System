@@ -2,6 +2,8 @@
 
 基于 Node.js + Python + SQL Server 的高校宿舍管理 Web 系统，支持楼栋管理、宿舍分配、报修、访客登记、卫生检查等功能。
 
+![image1](./public/截图.png)
+
 ## 技术栈
 
 | 层 | 技术 |
